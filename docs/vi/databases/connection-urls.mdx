@@ -181,11 +181,12 @@ cassandra://host:9042                        # không auth, không keyspace mặ
 | Parameter | Mô tả |
 |-----------|-------------|
 | `usePrivateKey` | `true` để dùng xác thực SSH bằng key thay vì mật khẩu |
+| `localPort` | Cổng localhost cố định cho endpoint SSH đã forward |
 
 **Ví dụ:**
 
 ```
-postgresql+ssh://ubuntu@bastion/dbuser@10.0.0.5/mydb?usePrivateKey=true
+postgresql+ssh://ubuntu@bastion/dbuser@10.0.0.5/mydb?usePrivateKey=true&localPort=65432
 ```
 
 ## Cách Mở URL Trực tiếp

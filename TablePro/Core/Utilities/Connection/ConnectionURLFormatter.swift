@@ -148,6 +148,10 @@ struct ConnectionURLFormatter {
             }
         }
 
+        if connection.sshConfig.enabled && connection.sshConfig.localPort != 0 {
+            params.append("localPort=\(connection.sshConfig.localPort)")
+        }
+
         if let sslParam = sslModeParam(connection.sslConfig.mode) {
             params.append("sslmode=\(sslParam)")
         }

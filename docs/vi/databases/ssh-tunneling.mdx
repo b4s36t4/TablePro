@@ -79,6 +79,12 @@ flowchart LR
 | **SSH Port** | Cổng SSH server | `22` |
 | **SSH User** | Tên người dùng SSH | - |
 
+### Thiết lập port forwarding
+
+| Trường | Mô tả | Mặc định |
+|-------|-------------|---------|
+| **Local Port** | Cổng localhost dùng để forward. Để trống để tự chọn cổng khả dụng. | Tự động |
+
 ### Phương thức Xác thực
 
 TablePro hỗ trợ ba phương thức:
@@ -425,6 +431,7 @@ Kết quả:
 | `usePrivateKey` | `true` để chọn xác thực Private Key |
 | `useSSHAgent` | `true` để chọn xác thực SSH Agent |
 | `agentSocket` | Đường dẫn socket SSH agent ghi đè (ví dụ: `~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock`) |
+| `localPort` | Cổng localhost cố định cho forwarding (ví dụ: `63306`) |
 
 Import: mở **New Connection**, nhấp **Import from URL**, dán URL.
 

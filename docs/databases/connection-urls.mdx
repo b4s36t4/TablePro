@@ -181,11 +181,12 @@ cassandra://host:9042                        # no auth, no default keyspace
 | Parameter | Description |
 |-----------|-------------|
 | `usePrivateKey` | `true` to use key-based SSH authentication instead of password |
+| `localPort` | Optional fixed localhost port for the SSH forwarded endpoint |
 
 **Example:**
 
 ```
-postgresql+ssh://ubuntu@bastion/dbuser@10.0.0.5/mydb?usePrivateKey=true
+postgresql+ssh://ubuntu@bastion/dbuser@10.0.0.5/mydb?usePrivateKey=true&localPort=65432
 ```
 
 ## How Direct URL Opening Works

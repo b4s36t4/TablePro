@@ -419,6 +419,9 @@ final class DatabaseManager {
             remoteHost: connection.host,
             remotePort: connection.port,
             jumpHosts: connection.sshConfig.jumpHosts,
+            preferredLocalPort: connection.sshConfig.localPort == 0
+                ? nil
+                : connection.sshConfig.localPort,
             totpMode: connection.sshConfig.totpMode,
             totpSecret: totpSecret,
             totpAlgorithm: connection.sshConfig.totpAlgorithm,

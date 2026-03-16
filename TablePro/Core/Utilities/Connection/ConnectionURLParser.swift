@@ -16,6 +16,7 @@ struct ParsedConnectionURL {
     let authSource: String?
     let sshHost: String?
     let sshPort: Int?
+    let sshLocalPort: Int?
     let sshUsername: String?
     let usePrivateKey: Bool?
     let useSSHAgent: Bool?
@@ -135,6 +136,7 @@ struct ConnectionURLParser {
                 authSource: nil,
                 sshHost: nil,
                 sshPort: nil,
+                sshLocalPort: nil,
                 sshUsername: nil,
                 usePrivateKey: nil,
                 useSSHAgent: nil,
@@ -214,6 +216,7 @@ struct ConnectionURLParser {
             authSource: ext.authSource,
             sshHost: nil,
             sshPort: nil,
+            sshLocalPort: nil,
             sshUsername: nil,
             usePrivateKey: nil,
             useSSHAgent: nil,
@@ -345,6 +348,7 @@ struct ConnectionURLParser {
             authSource: ext.authSource,
             sshHost: sshHost,
             sshPort: sshPort,
+            sshLocalPort: ext.sshLocalPort,
             sshUsername: sshUsername,
             usePrivateKey: ext.usePrivateKey,
             useSSHAgent: ext.useSSHAgent,
@@ -373,6 +377,7 @@ struct ConnectionURLParser {
         var usePrivateKey: Bool?
         var useSSHAgent: Bool?
         var agentSocket: String?
+        var sshLocalPort: Int?
         var statusColor: String?
         var envTag: String?
         var schema: String?
@@ -413,6 +418,10 @@ struct ConnectionURLParser {
             }
             if String(key) == "agentSocket" {
                 ext.agentSocket = value.removingPercentEncoding ?? value
+                continue
+            }
+            if String(key) == "localPort" || String(key) == "sshLocalPort" {
+                ext.sshLocalPort = Int(value)
                 continue
             }
             applyQueryParam(key: String(key), value: value, to: &ext)
