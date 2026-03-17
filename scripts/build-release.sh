@@ -10,7 +10,7 @@ SCHEME="TablePro"
 CONFIG="Release"
 BUILD_DIR="build/Release"
 SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Dat Ngo Quoc (D7HJ5TFYCU)}"
-TEAM_ID="D7HJ5TFYCU"
+TEAM_ID="${TEAM_ID:-D7HJ5TFYCU}"
 NOTARIZE="${NOTARIZE:-false}"
 APPLE_ID="${APPLE_ID:-datngoquoc@icloud.com}"
 
@@ -337,6 +337,19 @@ build_for_arch() {
     mkdir -p "$SPM_CACHE_DIR"
 
     # Build with xcodebuild
+    # In ad-hoc mode (SIGN_IDENTITY=-), skip Xcode signing and sign later.
+    local xcode_sign_args=()
+    if [ "$SIGN_IDENTITY" = "-" ]; then
+        echo "⚠️  Using ad-hoc signing mode (unsigned CI fallback)"
+        xcode_sign_args+=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="")
+    else
+        xcode_sign_args+=(
+            CODE_SIGN_IDENTITY="$SIGN_IDENTITY"
+            CODE_SIGN_STYLE=Manual
+            DEVELOPMENT_TEAM="$TEAM_ID"
+        )
+    fi
+
     echo "Running xcodebuild..."
     if ! xcodebuild \
         -project "$PROJECT" \
@@ -344,9 +357,7 @@ build_for_arch() {
         -configuration "$CONFIG" \
         -arch "$arch" \
         ONLY_ACTIVE_ARCH=YES \
-        CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
-        CODE_SIGN_STYLE=Manual \
-        DEVELOPMENT_TEAM="$TEAM_ID" \
+        "${xcode_sign_args[@]}" \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
@@ -457,32 +468,38 @@ build_for_arch() {
     # Sign from inside out: nested binaries → frameworks → dylibs → app.
     echo "🔏 Signing app bundle with: $SIGN_IDENTITY"
     FRAMEWORKS_DIR="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks"
+    local codesign_flags=(--force)
+    if [ "$SIGN_IDENTITY" != "-" ]; then
+        codesign_flags+=(--options runtime --timestamp)
+    else
+        echo "⚠️  Applying ad-hoc signatures without notarization-specific flags"
+    fi
 
     # Sign all nested XPC services, helper apps, and executables inside frameworks
     while IFS= read -r -d '' binary; do
-        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$binary"
+        codesign -fs "$SIGN_IDENTITY" "${codesign_flags[@]}" "$binary"
     done < <(find "$FRAMEWORKS_DIR" -type f \( -name "*.xpc" -o -perm +111 \) -not -name "*.dylib" -not -name "*.plist" -not -name "*.h" -not -name "*.strings" -not -name "*.nib" -not -name "*.png" -not -name "*.icns" -not -name "*.car" -not -name "CodeResources" -not -name "Info.plist" -print0 2>/dev/null)
 
     # Sign XPC service bundles
     while IFS= read -r -d '' xpc; do
-        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$xpc"
+        codesign -fs "$SIGN_IDENTITY" "${codesign_flags[@]}" "$xpc"
     done < <(find "$FRAMEWORKS_DIR" -name "*.xpc" -type d -print0 2>/dev/null)
 
     # Sign nested .app bundles (e.g., Sparkle's Updater.app)
     while IFS= read -r -d '' app; do
-        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$app"
+        codesign -fs "$SIGN_IDENTITY" "${codesign_flags[@]}" "$app"
     done < <(find "$FRAMEWORKS_DIR" -name "*.app" -type d -print0 2>/dev/null)
 
     # Sign top-level frameworks
     for fw in "$FRAMEWORKS_DIR"/*.framework; do
         [ -d "$fw" ] || continue
-        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$fw"
+        codesign -fs "$SIGN_IDENTITY" "${codesign_flags[@]}" "$fw"
     done
 
     # Sign top-level dylibs
     for dylib in "$FRAMEWORKS_DIR"/*.dylib; do
         [ -f "$dylib" ] || continue
-        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$dylib"
+        codesign -fs "$SIGN_IDENTITY" "${codesign_flags[@]}" "$dylib"
     done
 
     # Sign plugin bundles (stripped binaries need re-signing)
@@ -495,10 +512,10 @@ build_for_arch() {
             local plugin_binary="$plugin/Contents/MacOS/$plugin_name"
             # Sign the binary inside the bundle first
             if [ -f "$plugin_binary" ]; then
-                codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin_binary"
+                codesign -fs "$SIGN_IDENTITY" "${codesign_flags[@]}" "$plugin_binary"
             fi
             # Then sign the bundle
-            codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin"
+            codesign -fs "$SIGN_IDENTITY" "${codesign_flags[@]}" "$plugin"
         done
     fi
 
@@ -510,7 +527,7 @@ build_for_arch() {
     fi
 
     # Sign the app bundle last
-    codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp --entitlements "TablePro/TablePro.entitlements" "$BUILD_DIR/$OUTPUT_NAME"
+    codesign -fs "$SIGN_IDENTITY" "${codesign_flags[@]}" --entitlements "TablePro/TablePro.entitlements" "$BUILD_DIR/$OUTPUT_NAME"
     echo "✅ Code signing complete"
 
     # Verify signature
