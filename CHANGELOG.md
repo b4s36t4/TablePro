@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Turkish language in Settings > General (Türkçe) with Turkish translations for UI strings
 - etcd v3 plugin with prefix-tree key browsing, etcdctl syntax editor, lease management, watch, mTLS, auth, and cluster info
 - Save Changes button in toolbar for committing pending data edits
 - Confirmation dialog before deleting a connection
@@ -25,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Connection test not cleaning up SSH tunnel on completion
 - Test connection success indicator not resetting after field changes
 - SSH port field accepting invalid values
+- DROP TABLE and TRUNCATE TABLE sidebar operations producing no SQL for plugin-based drivers
+- Foreign key navigation arrows not appearing after switching databases with Cmd+K on MySQL
+- Sidebar not refreshing after creating or dropping tables
+- Dropping a table disconnecting the database when the dropped table's tab was active
 
 ### Changed
 

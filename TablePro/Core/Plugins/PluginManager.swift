@@ -12,7 +12,7 @@ import TableProPluginKit
 @MainActor @Observable
 final class PluginManager {
     static let shared = PluginManager()
-    static let currentPluginKitVersion = 1
+    static let currentPluginKitVersion = 2
     private static let disabledPluginsKey = "com.TablePro.disabledPlugins"
     private static let legacyDisabledPluginsKey = "disabledPlugins"
 
@@ -161,6 +161,15 @@ final class PluginManager {
         }
 
         if source == .userInstalled {
+            // User-installed plugins compiled against an older DriverPlugin protocol
+            // have stale witness tables — accessing protocol properties crashes with
+            // EXC_BAD_ACCESS. Reject them before loading the bundle.
+            if pluginKitVersion < Self.currentPluginKitVersion {
+                throw PluginError.incompatibleVersion(
+                    required: Self.currentPluginKitVersion,
+                    current: pluginKitVersion
+                )
+            }
             try verifyCodeSignature(bundle: bundle)
         }
 
@@ -191,6 +200,12 @@ final class PluginManager {
         }
 
         if source == .userInstalled {
+            if pluginKitVersion < Self.currentPluginKitVersion {
+                throw PluginError.incompatibleVersion(
+                    required: Self.currentPluginKitVersion,
+                    current: pluginKitVersion
+                )
+            }
             try verifyCodeSignature(bundle: bundle)
         }
 
@@ -249,6 +264,7 @@ final class PluginManager {
                 try validateDriverDescriptor(type(of: driver), pluginId: pluginId)
             } catch {
                 Self.logger.error("Plugin '\(pluginId)' driver rejected: \(error.localizedDescription)")
+                return
             }
             if !driverPlugins.keys.contains(type(of: driver).databaseTypeId) {
                 let driverType = type(of: driver)
@@ -264,9 +280,9 @@ final class PluginManager {
                     from: driverType,
                     isDownloadable: driverType.isDownloadable
                 )
-                PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: typeId)
+                PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: typeId, preserveIcon: true)
                 for additionalId in driverType.additionalDatabaseTypeIds {
-                    PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: additionalId)
+                    PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: additionalId, preserveIcon: true)
                     PluginMetadataRegistry.shared.registerTypeAlias(additionalId, primaryTypeId: typeId)
                 }
 

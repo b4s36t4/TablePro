@@ -336,13 +336,14 @@ struct MainContentView: View {
                 // Skip if the user has unsaved changes (in-memory or tab-level).
                 let hasPendingEdits = changeManager.hasChanges
                     || (tabManager.selectedTab?.pendingChanges.hasChanges ?? false)
+                let isConnected = DatabaseManager.shared.activeSessions[connection.id]?.isConnected ?? false
                 let needsLazyLoad = tabManager.selectedTab.map { tab in
                     tab.tabType == .table
                         && (tab.resultRows.isEmpty || tab.rowBuffer.isEvicted)
                         && (tab.lastExecutedAt == nil || tab.rowBuffer.isEvicted)
                         && !tab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 } ?? false
-                if needsLazyLoad && !hasPendingEdits {
+                if needsLazyLoad && !hasPendingEdits && isConnected {
                     coordinator.runQuery()
                 }
             }
@@ -487,6 +488,20 @@ struct MainContentView: View {
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
+                        if !selectedTab.filterState.appliedFilters.isEmpty,
+                           let tableName = selectedTab.tableName,
+                           let tabIndex = tabManager.selectedTabIndex
+                        {
+                            // columns is [] on initial load — buildFilteredQuery uses SELECT *
+                            let filteredQuery = coordinator.queryBuilder.buildFilteredQuery(
+                                tableName: tableName,
+                                filters: selectedTab.filterState.appliedFilters,
+                                columns: [],
+                                limit: selectedTab.pagination.pageSize,
+                                offset: selectedTab.pagination.currentOffset
+                            )
+                            tabManager.tabs[tabIndex].query = filteredQuery
+                        }
                         coordinator.executeTableTabQueryDirectly()
                     }
                 } else {
