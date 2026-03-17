@@ -79,6 +79,12 @@ flowchart LR
 | **SSH Port** | SSH server port | `22` |
 | **SSH User** | SSH username | - |
 
+### Port forwarding settings
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| **Local Port** | Localhost port used for forwarding. Leave empty to auto-select an available port. | Auto |
+
 ### Authentication Methods
 
 TablePro supports three SSH authentication methods:
@@ -425,6 +431,7 @@ This fills in:
 | `usePrivateKey` | Set to `true` to select Private Key authentication |
 | `useSSHAgent` | Set to `true` to select SSH Agent authentication |
 | `agentSocket` | Optional SSH agent socket path override (for example, `~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock`) |
+| `localPort` | Optional fixed localhost forwarded port (for example, `63306`) |
 
 To import, open **New Connection**, click **Import from URL**, and paste the URL.
 

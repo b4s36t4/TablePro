@@ -59,6 +59,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
     @State private var sshEnabled: Bool = false
     @State private var sshHost: String = ""
     @State private var sshPort: String = "22"
+    @State private var sshLocalPort: String = ""
     @State private var sshUsername: String = ""
     @State private var sshPassword: String = ""
     @State private var sshAuthMethod: SSHAuthMethod = .password
@@ -465,6 +466,21 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                         prompt: Text("username")
                     )
                 }
+                Section(String(localized: "Port Forwarding")) {
+                    TextField(
+                        String(localized: "Local Port"),
+                        text: $sshLocalPort,
+                        prompt: Text(String(localized: "Auto"))
+                    )
+                    Text(
+                        String(
+                            localized:
+                                "Leave empty to auto-select a localhost port. Set a fixed port to keep a stable local endpoint."
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
                 Section(String(localized: "Authentication")) {
                     Picker(String(localized: "Method"), selection: $sshAuthMethod) {
                         ForEach(SSHAuthMethod.allCases) { method in
@@ -837,6 +853,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         .onChange(of: sshEnabled) { _, _ in testSucceeded = false }
         .onChange(of: sshHost) { _, _ in testSucceeded = false }
         .onChange(of: sshPort) { _, _ in testSucceeded = false }
+        .onChange(of: sshLocalPort) { _, _ in testSucceeded = false }
         .onChange(of: sshUsername) { _, _ in testSucceeded = false }
         .onChange(of: sshAuthMethod) { _, _ in testSucceeded = false }
         .onChange(of: sslMode) { _, _ in testSucceeded = false }
@@ -863,12 +880,14 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         let basicValid = !name.isEmpty && (isFileBased ? !database.isEmpty : true)
         if sshEnabled {
             let sshPortValid = sshPort.isEmpty || (Int(sshPort).map { (1...65_535).contains($0) } ?? false)
+            let sshLocalPortValid =
+                sshLocalPort.isEmpty || (Int(sshLocalPort).map { (1...65_535).contains($0) } ?? false)
             let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty && sshPortValid
             let authValid =
                 sshAuthMethod == .password || sshAuthMethod == .sshAgent
                 || sshAuthMethod == .keyboardInteractive || !sshPrivateKeyPath.isEmpty
             let jumpValid = jumpHosts.allSatisfy(\.isValid)
-            return basicValid && sshValid && authValid && jumpValid
+            return basicValid && sshValid && sshLocalPortValid && authValid && jumpValid
         }
         return basicValid
     }
@@ -903,6 +922,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             sshEnabled = existing.sshConfig.enabled
             sshHost = existing.sshConfig.host
             sshPort = String(existing.sshConfig.port)
+            sshLocalPort = existing.sshConfig.localPort == 0 ? "" : String(existing.sshConfig.localPort)
             sshUsername = existing.sshConfig.username
             sshAuthMethod = existing.sshConfig.authMethod
             sshPrivateKeyPath = existing.sshConfig.privateKeyPath
@@ -969,6 +989,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             enabled: sshEnabled,
             host: sshHost,
             port: Int(sshPort) ?? 22,
+            localPort: Int(sshLocalPort) ?? 0,
             username: sshUsername,
             authMethod: sshAuthMethod,
             privateKeyPath: sshPrivateKeyPath,
@@ -1133,6 +1154,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             enabled: sshEnabled,
             host: sshHost,
             port: Int(sshPort) ?? 22,
+            localPort: Int(sshLocalPort) ?? 0,
             username: sshUsername,
             authMethod: sshAuthMethod,
             privateKeyPath: sshPrivateKeyPath,
@@ -1320,6 +1342,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                 sshEnabled = true
                 sshHost = sshHostValue
                 sshPort = parsed.sshPort.map(String.init) ?? "22"
+                sshLocalPort = parsed.sshLocalPort.map(String.init) ?? ""
                 sshUsername = parsed.sshUsername ?? ""
                 if parsed.usePrivateKey == true {
                     sshAuthMethod = .privateKey

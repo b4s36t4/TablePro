@@ -115,6 +115,7 @@ struct SSHConfiguration: Codable, Hashable {
     var enabled: Bool = false
     var host: String = ""
     var port: Int = 22
+    var localPort: Int = 0  // 0 = auto-select available localhost port
     var username: String = ""
     var authMethod: SSHAuthMethod = .password
     var privateKeyPath: String = ""  // Path to identity file (e.g., ~/.ssh/id_rsa)
@@ -130,6 +131,7 @@ struct SSHConfiguration: Codable, Hashable {
     var isValid: Bool {
         guard enabled else { return true }  // Not enabled = valid (skip SSH)
         guard !host.isEmpty, !username.isEmpty else { return false }
+        guard localPort == 0 || (1...65_535).contains(localPort) else { return false }
 
         let authValid: Bool
         switch authMethod {
@@ -149,7 +151,8 @@ struct SSHConfiguration: Codable, Hashable {
 
 extension SSHConfiguration {
     enum CodingKeys: String, CodingKey {
-        case enabled, host, port, username, authMethod, privateKeyPath, useSSHConfig, agentSocketPath, jumpHosts
+        case enabled, host, port, localPort, username, authMethod, privateKeyPath, useSSHConfig, agentSocketPath
+        case jumpHosts
         case totpMode, totpAlgorithm, totpDigits, totpPeriod
     }
 
@@ -158,6 +161,7 @@ extension SSHConfiguration {
         enabled = try container.decode(Bool.self, forKey: .enabled)
         host = try container.decode(String.self, forKey: .host)
         port = try container.decode(Int.self, forKey: .port)
+        localPort = try container.decodeIfPresent(Int.self, forKey: .localPort) ?? 0
         username = try container.decode(String.self, forKey: .username)
         authMethod = try container.decode(SSHAuthMethod.self, forKey: .authMethod)
         privateKeyPath = try container.decode(String.self, forKey: .privateKeyPath)

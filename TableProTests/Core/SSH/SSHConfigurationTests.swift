@@ -83,6 +83,25 @@ struct SSHConfigurationTests {
         #expect(config.agentSocketPath == "")
     }
 
+    @Test("Local forward port defaults to auto mode")
+    func testLocalForwardPortDefault() {
+        let config = SSHConfiguration()
+        #expect(config.localPort == 0)
+    }
+
+    @Test("Invalid local forward port makes config invalid")
+    func testInvalidLocalForwardPort() {
+        let config = SSHConfiguration(
+            enabled: true,
+            host: "example.com",
+            port: 22,
+            localPort: 70_000,
+            username: "admin",
+            authMethod: .sshAgent
+        )
+        #expect(config.isValid == false)
+    }
+
     @Test("Empty socket path maps to SSH_AUTH_SOCK option")
     func testEmptySocketPathMapsToSystemDefault() {
         #expect(SSHAgentSocketOption(socketPath: "") == .systemDefault)

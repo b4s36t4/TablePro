@@ -444,6 +444,17 @@ struct ConnectionURLParserTests {
         #expect(parsed.usePrivateKey == true)
     }
 
+    @Test("SSH URL parses local forwarded port")
+    func testSSHURLParsesLocalPort() {
+        let result = ConnectionURLParser.parse(
+            "mysql+ssh://root@host:22/user:pass@localhost/db?localPort=63306"
+        )
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.sshLocalPort == 63_306)
+    }
+
     @Test("Non-SSH URL has nil SSH fields")
     func testNonSSHURLHasNilSSHFields() {
         let result = ConnectionURLParser.parse("mysql://root:pass@localhost:3306/db")

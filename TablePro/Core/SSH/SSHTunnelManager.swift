@@ -17,6 +17,7 @@ enum SSHTunnelError: Error, LocalizedError {
     case connectionTimeout
     case hostKeyVerificationFailed
     case channelOpenFailed
+    case sshCommandNotFound
 
     var errorDescription: String? {
         switch self {
@@ -34,6 +35,8 @@ enum SSHTunnelError: Error, LocalizedError {
             return String(localized: "SSH host key verification failed")
         case .channelOpenFailed:
             return String(localized: "Failed to open SSH channel for port forwarding")
+        case .sshCommandNotFound:
+            return String(localized: "SSH command not found")
         }
     }
 }
@@ -66,6 +69,7 @@ actor SSHTunnelManager {
         remoteHost: String,
         remotePort: Int,
         jumpHosts: [SSHJumpHost] = [],
+        preferredLocalPort: Int? = nil,
         totpMode: TOTPMode = .none,
         totpSecret: String? = nil,
         totpAlgorithm: TOTPAlgorithm = .sha1,
@@ -100,7 +104,7 @@ actor SSHTunnelManager {
         )
 
         // Try ports until one works
-        for localPort in localPortCandidates() {
+        for localPort in localPortCandidates(preferredLocalPort: preferredLocalPort) {
             do {
                 let tunnel = try await Task.detached {
                     try LibSSH2TunnelFactory.createTunnel(
@@ -187,13 +191,43 @@ actor SSHTunnelManager {
 
     /// Check if an error message indicates a local port bind failure
     static func isLocalPortBindFailure(_ errorMessage: String) -> Bool {
-        errorMessage.lowercased().contains("already in use")
+        let normalized = errorMessage.lowercased()
+        return normalized.contains("already in use")
+            || normalized.contains("cannot listen to port")
+            || normalized.contains("could not request local forwarding")
+            || normalized.contains("port forwarding failed")
+    }
+
+    /// Return root process id and all descendants from a parent->child map.
+    /// Useful for process-tree ownership assertions in tests.
+    static func descendantProcessIds(
+        rootProcessId: Int32,
+        parentProcessIds: [Int32: Int32]
+    ) -> [Int32] {
+        var result: [Int32] = []
+        var queue: [Int32] = [rootProcessId]
+
+        while !queue.isEmpty {
+            let pid = queue.removeFirst()
+            result.append(pid)
+
+            let children = parentProcessIds
+                .filter { $0.value == pid }
+                .map(\.key)
+                .sorted()
+            queue.append(contentsOf: children)
+        }
+
+        return result
     }
 
     // MARK: - Private
 
-    private func localPortCandidates() -> [Int] {
-        Array(portRangeStart...portRangeEnd).shuffled()
+    private func localPortCandidates(preferredLocalPort: Int?) -> [Int] {
+        if let preferredLocalPort {
+            return [preferredLocalPort]
+        }
+        return Array(portRangeStart...portRangeEnd).shuffled()
     }
 
     private func handleTunnelDeath(connectionId: UUID) async {

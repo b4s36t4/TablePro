@@ -205,6 +205,23 @@ struct ConnectionURLFormatterTests {
         #expect(url.contains("usePrivateKey=true"))
     }
 
+    @Test("SSH with fixed local port adds localPort query param")
+    func testSSHLocalPortQueryParam() {
+        var sshConfig = SSHConfiguration()
+        sshConfig.enabled = true
+        sshConfig.host = "sshhost"
+        sshConfig.port = 22
+        sshConfig.localPort = 63_306
+        sshConfig.username = "root"
+
+        let conn = DatabaseConnection(
+            name: "", host: "localhost", port: 3_306, database: "db",
+            username: "user", type: .mysql, sshConfig: sshConfig
+        )
+        let url = ConnectionURLFormatter.format(conn, password: "pass", sshPassword: nil)
+        #expect(url.contains("localPort=63306"))
+    }
+
     // MARK: - SSL Mode
 
     @Test("SSL mode included in query string")
@@ -250,6 +267,7 @@ struct ConnectionURLFormatterTests {
         sshConfig.enabled = true
         sshConfig.host = "jumpbox.example.com"
         sshConfig.port = 2_222
+        sshConfig.localPort = 55_432
         sshConfig.username = "deploy"
         sshConfig.authMethod = .privateKey
 
@@ -278,6 +296,7 @@ struct ConnectionURLFormatterTests {
         #expect(parsed.password == password)
         #expect(parsed.sshHost == "jumpbox.example.com")
         #expect(parsed.sshPort == 2_222)
+        #expect(parsed.sshLocalPort == 55_432)
         #expect(parsed.sshUsername == "deploy")
         #expect(parsed.usePrivateKey == true)
         #expect(parsed.sslMode == .required)
