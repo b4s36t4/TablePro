@@ -132,8 +132,12 @@ echo "✅ TableProPluginKit.framework present"
 # Verify code signature
 echo "Verifying code signature..."
 if codesign --verify --deep --strict "$APP_BUNDLE" 2>&1; then
-  SIGN_INFO=$(codesign -dvv "$APP_BUNDLE" 2>&1 | grep "Authority=" | head -1)
-  echo "✅ Code signature valid: $SIGN_INFO"
+  SIGN_INFO=$(codesign -dvv "$APP_BUNDLE" 2>&1 | awk -F= '/Authority=/{print $2; exit}')
+  if [ -n "$SIGN_INFO" ]; then
+    echo "✅ Code signature valid: Authority=$SIGN_INFO"
+  else
+    echo "✅ Code signature valid: ad-hoc signature"
+  fi
 else
   echo "❌ ERROR: Code signature verification failed"
   codesign -dvv "$APP_BUNDLE" 2>&1 || true

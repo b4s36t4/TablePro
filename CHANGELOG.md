@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test connection success indicator not resetting after field changes
 - SSH port field accepting invalid values
 
+### Changed
+
+- Release workflow now falls back to unsigned, unnotarized artifacts when signing/notarization secrets are unavailable
+
 ## [0.19.1] - 2026-03-16
 
 ### Fixed

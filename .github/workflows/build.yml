@@ -80,7 +80,35 @@ jobs:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
         run: echo "ANALYTICS_HMAC_SECRET = ${ANALYTICS_HMAC_SECRET}" > Secrets.xcconfig
 
+      - name: Determine signing and notarization mode
+        id: signing_mode
+        env:
+          CERTIFICATES_P12: ${{ secrets.CERTIFICATES_P12 }}
+          CERTIFICATES_PASSWORD: ${{ secrets.CERTIFICATES_PASSWORD }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          if [ -n "$CERTIFICATES_P12" ] && [ -n "$CERTIFICATES_PASSWORD" ] && [ -n "$PROVISIONING_PROFILE" ]; then
+            echo "mode=signed" >> "$GITHUB_OUTPUT"
+            echo "sign_identity=Developer ID Application: Dat Ngo Quoc (D7HJ5TFYCU)" >> "$GITHUB_OUTPUT"
+            if [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$NOTARY_PASSWORD" ]; then
+              echo "notarize=true" >> "$GITHUB_OUTPUT"
+              echo "✅ Release mode: signed + notarized"
+            else
+              echo "notarize=false" >> "$GITHUB_OUTPUT"
+              echo "⚠️  Release mode: signed, notarization skipped (missing notary secrets)"
+            fi
+          else
+            echo "mode=unsigned" >> "$GITHUB_OUTPUT"
+            echo "sign_identity=-" >> "$GITHUB_OUTPUT"
+            echo "notarize=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Release mode: unsigned/unnotarized fallback"
+          fi
+
       - name: Import signing certificate
+        if: steps.signing_mode.outputs.mode == 'signed'
         env:
           CERTIFICATES_P12: ${{ secrets.CERTIFICATES_P12 }}
           CERTIFICATES_PASSWORD: ${{ secrets.CERTIFICATES_PASSWORD }}
@@ -96,6 +124,7 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
 
       - name: Configure notarization
+        if: steps.signing_mode.outputs.notarize == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -107,6 +136,7 @@ jobs:
             --password "$NOTARY_PASSWORD"
 
       - name: Install provisioning profile
+        if: steps.signing_mode.outputs.mode == 'signed'
         env:
           PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
@@ -116,7 +146,8 @@ jobs:
       - name: Build ARM64
         env:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
-          NOTARIZE: "true"
+          SIGN_IDENTITY: ${{ steps.signing_mode.outputs.sign_identity }}
+          NOTARIZE: ${{ steps.signing_mode.outputs.notarize }}
         run: |
           chmod +x scripts/build-release.sh
           scripts/build-release.sh arm64
@@ -126,7 +157,7 @@ jobs:
 
       - name: Package artifacts
         env:
-          NOTARIZE: "true"
+          NOTARIZE: ${{ steps.signing_mode.outputs.notarize }}
         run: scripts/ci/package-artifacts.sh arm64
 
       - name: Upload artifacts
@@ -198,7 +229,35 @@ jobs:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
         run: echo "ANALYTICS_HMAC_SECRET = ${ANALYTICS_HMAC_SECRET}" > Secrets.xcconfig
 
+      - name: Determine signing and notarization mode
+        id: signing_mode
+        env:
+          CERTIFICATES_P12: ${{ secrets.CERTIFICATES_P12 }}
+          CERTIFICATES_PASSWORD: ${{ secrets.CERTIFICATES_PASSWORD }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          if [ -n "$CERTIFICATES_P12" ] && [ -n "$CERTIFICATES_PASSWORD" ] && [ -n "$PROVISIONING_PROFILE" ]; then
+            echo "mode=signed" >> "$GITHUB_OUTPUT"
+            echo "sign_identity=Developer ID Application: Dat Ngo Quoc (D7HJ5TFYCU)" >> "$GITHUB_OUTPUT"
+            if [ -n "$APPLE_ID" ] && [ -n "$APPLE_TEAM_ID" ] && [ -n "$NOTARY_PASSWORD" ]; then
+              echo "notarize=true" >> "$GITHUB_OUTPUT"
+              echo "✅ Release mode: signed + notarized"
+            else
+              echo "notarize=false" >> "$GITHUB_OUTPUT"
+              echo "⚠️  Release mode: signed, notarization skipped (missing notary secrets)"
+            fi
+          else
+            echo "mode=unsigned" >> "$GITHUB_OUTPUT"
+            echo "sign_identity=-" >> "$GITHUB_OUTPUT"
+            echo "notarize=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Release mode: unsigned/unnotarized fallback"
+          fi
+
       - name: Import signing certificate
+        if: steps.signing_mode.outputs.mode == 'signed'
         env:
           CERTIFICATES_P12: ${{ secrets.CERTIFICATES_P12 }}
           CERTIFICATES_PASSWORD: ${{ secrets.CERTIFICATES_PASSWORD }}
@@ -214,6 +273,7 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
 
       - name: Configure notarization
+        if: steps.signing_mode.outputs.notarize == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -225,6 +285,7 @@ jobs:
             --password "$NOTARY_PASSWORD"
 
       - name: Install provisioning profile
+        if: steps.signing_mode.outputs.mode == 'signed'
         env:
           PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
@@ -234,7 +295,8 @@ jobs:
       - name: Build x86_64
         env:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
-          NOTARIZE: "true"
+          SIGN_IDENTITY: ${{ steps.signing_mode.outputs.sign_identity }}
+          NOTARIZE: ${{ steps.signing_mode.outputs.notarize }}
         run: |
           chmod +x scripts/build-release.sh
           scripts/build-release.sh x86_64
@@ -244,7 +306,7 @@ jobs:
 
       - name: Package artifacts
         env:
-          NOTARIZE: "true"
+          NOTARIZE: ${{ steps.signing_mode.outputs.notarize }}
         run: scripts/ci/package-artifacts.sh x86_64
 
       - name: Upload artifacts
